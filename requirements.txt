@@ -1,0 +1,19 @@
+# Core
+fastapi[standard]==0.115.0  # Сам фреймворк + uvicorn (сервер)
+pydantic[email]==2.9.0      # Валидация данных и EmailStr
+
+# Database
+sqlalchemy==2.0.46          # Тот же SQLAlchemy, но используем асинхронно
+aiosqlite==0.20.0           # Асинхронный драйвер для SQLite
+# asyncpg==0.29.0           # Раскомментируй, если перейдешь на PostgreSQL
+
+# Migrations
+alembic==1.18.4             # Управление миграциями
+
+# Security & Auth
+passlib[bcrypt]==1.7.4      # Хеширование паролей (вместо Werkzeug)
+python-jose[cryptography]==3.3.0  # Для работы с JWT токенами
+
+# Utilities
+slowapi==0.1.9              # Аналог Flask-Limiter для FastAPI
+python-multipart==0.0.12    # Для поддержки форм и загрузки файлов
