@@ -1,19 +1,38 @@
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from App import auth, groups, tests, dashboard
 
-app = FastAPI(title="LMS Exam Prep API")
+from app.routers import auth, dashboard, groups
+from db.db_ext import init_db
 
-# Подключаем роутеры (аналог Blueprint в Flask)
-app.include_router(auth.router)
-app.include_router(groups.router)
-app.include_router(tests.router)
-app.include_router(dashboard.router)
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Инициализация БД при старте приложения."""
+    await init_db()
+    yield
+
+
+app = FastAPI(
+    title="LMS Exam Prep API",
+    lifespan=lifespan
+)
+
+# Все роутеры под префиксом /api
+app.include_router(auth.router, prefix="/api")
+app.include_router(groups.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to Exam Prep API", "docs": "/docs"}
 
+
 if __name__ == "__main__":
-    # Запуск сервера (аналог app.run во Flask)
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    debug = os.getenv("DEBUG", "true").lower() == "true"
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=debug)

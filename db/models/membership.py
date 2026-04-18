@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ForeignKey, DateTime, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# Импортируем Base, который мы определили ранее
-from .user import Base
+from db.base import Base  # Base теперь в отдельном файле
 
 if TYPE_CHECKING:
-    from .user import User
-    from .study_group import StudyGroup
+    from db.models.user import User
+    from db.models.study_group import StudyGroup
 
 
 class GroupMembership(Base):
@@ -26,7 +25,6 @@ class GroupMembership(Base):
         nullable=False
     )
 
-    # Отношения
     user: Mapped["User"] = relationship("User", back_populates="memberships")
     group: Mapped["StudyGroup"] = relationship("StudyGroup", back_populates="memberships")
 

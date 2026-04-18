@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from DataBase.db_ext import get_db
 from DataBase import User, TestSubmission
-from .schemas import TestSubmissionCreate, MsgResponse
-from .auth_deps import role_required
+from app.schemas import TestSubmissionCreate
+from app.dependencies.auth_deps import role_required
 
 router = APIRouter(prefix="/test", tags=["tests"])
 

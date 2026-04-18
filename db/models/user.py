@@ -1,32 +1,23 @@
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, TYPE_CHECKING
 
 from sqlalchemy import String, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-# Используем passlib для хеширования (стандарт для FastAPI)
-from passlib.context import CryptContext
+from db.base import Base
+from app.core.security import pwd_context
 
-# Чтобы избежать цикличных импортов при типизации
 if TYPE_CHECKING:
-    from .submission import TestSubmission
-    from .membership import GroupMembership
-    from .study_group import StudyGroup
-
-# Настройка контекста паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-class Base(DeclarativeBase):
-    pass
+    from db.models.submission import TestSubmission
+    from db.models.membership import GroupMembership
+    from db.models.study_group import StudyGroup
 
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-
     full_name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -37,10 +28,8 @@ class User(Base):
         server_default=func.now(),
         nullable=False
     )
-
     role: Mapped[str] = mapped_column(String(20), default="student", nullable=False)
 
-    # Отношения (Relationships)
     test_submissions: Mapped[List["TestSubmission"]] = relationship(
         "TestSubmission",
         back_populates="student",
@@ -65,7 +54,6 @@ class User(Base):
     def is_student(self) -> bool:
         return self.role == "student"
 
-    # Методы безопасности
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_context.hash(password)
 

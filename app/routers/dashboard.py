@@ -1,41 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from DataBase.db_ext import get_db
-from DataBase import User, StudyGroup, GroupMembership, TestSubmission
-from .schemas import DashboardResponse
-# Здесь должна быть твоя функция проверки JWT или сессии
-from .auth_deps import get_current_user
+from db.db_ext import get_db
+from db.models.user import User
+from db.models.study_group import StudyGroup
+from db.models.membership import GroupMembership
+from db.models.submission import TestSubmission
+from app.schemas import DashboardResponse
+from app.dependencies.auth_deps import get_current_user
 
-router = APIRouter(prefix="/api", tags=["dashboard"])
+router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-@router.get("/dashboard", response_model=DashboardResponse)
+@router.get("/", response_model=DashboardResponse)
 async def dashboard(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    # Базовая информация о пользователе уже есть в current_user
-    user_data = current_user
-
-    if current_user.is_teacher:
-        # Получаем группы, созданные учителем
+    if current_user.role == "teacher":
         stmt = select(StudyGroup).where(StudyGroup.owner_id == current_user.id)
         result = await db.execute(stmt)
         my_groups = result.scalars().all()
 
         return {
-            "user": user_data,
+            "user": current_user,
             "groups_created": my_groups
         }
 
-    # Если студент: получаем сабмишены
+    # Студент
     sub_stmt = select(TestSubmission).where(TestSubmission.user_id == current_user.id)
     sub_res = await db.execute(sub_stmt)
     submissions = sub_res.scalars().all()
 
-    # Получаем группы, в которых состоит студент (через Join)
     group_stmt = (
         select(StudyGroup)
         .join(GroupMembership)
@@ -45,7 +42,7 @@ async def dashboard(
     joined_groups = group_res.scalars().all()
 
     return {
-        "user": user_data,
+        "user": current_user,
         "submissions": submissions,
         "groups_joined": joined_groups
     }

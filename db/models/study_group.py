@@ -3,13 +3,14 @@ from datetime import datetime
 from typing import List, TYPE_CHECKING
 
 from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, func, select
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, column_property
 
-from .user import Base
+from db.base import Base
 
 if TYPE_CHECKING:
-    from .user import User
-    from .membership import GroupMembership
+    from db.models.user import User
+    from db.models.membership import GroupMembership
+
 
 class StudyGroup(Base):
     __tablename__ = "study_groups"
@@ -30,13 +31,12 @@ class StudyGroup(Base):
 
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
-    # Отношения
     owner: Mapped["User"] = relationship("User", back_populates="groups_led")
     memberships: Mapped[List["GroupMembership"]] = relationship(
         "GroupMembership",
         back_populates="group",
         cascade="all, delete-orphan",
-        lazy="selectin"  # Оставляем selectin для удобства подгрузки
+        lazy="selectin"
     )
 
     __table_args__ = (
@@ -44,6 +44,13 @@ class StudyGroup(Base):
         CheckConstraint("length(name) >= 3", name="ck_group_name_length"),
     )
 
-    # Важное замечание по member_count:
-    # В FastAPI/SQLAlchemy 2.0 лучше считать это в репозитории или
-    # через column_property, чтобы избежать лишних запросов.
+
+# member_count считается через subquery — не лишний запрос на каждый объект
+from db.models.membership import GroupMembership  # noqa: E402
+
+StudyGroup.member_count = column_property(
+    select(func.count(GroupMembership.id))
+    .where(GroupMembership.group_id == StudyGroup.id)
+    .correlate_except(GroupMembership)
+    .scalar_subquery()
+)
