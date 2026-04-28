@@ -44,7 +44,7 @@ async def test_login_wrong_password(client):
 async def test_register_verify_wrong_code(client):
     with patch("app.routers.auth.send_verification_email"):
         await client.post("/api/auth/register/start", json={
-            "full_name": "Test User",
+            "full_name": "Test Urse",
             "email": "test@example.com",
             "role": "student"
         })
