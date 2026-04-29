@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import List, TYPE_CHECKING
+from enum import Enum
 
 from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, CheckConstraint, func, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship, column_property
@@ -10,6 +11,13 @@ from db.base import Base
 if TYPE_CHECKING:
     from db.models.user import User
     from db.models.membership import GroupMembership
+    from db.models.assignment import Assignment
+
+
+class GroupType(str, Enum):
+    student = "student"   # группа для учеников
+    teacher = "teacher"   # группа для учителей
+    mixed = "mixed"       # смешанная группа
 
 
 class StudyGroup(Base):
@@ -20,6 +28,9 @@ class StudyGroup(Base):
     subject: Mapped[str] = mapped_column(String(120), nullable=False)
     tutor_name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    group_type: Mapped[str] = mapped_column(
+        String(20), default=GroupType.student, nullable=False
+    )
 
     capacity: Mapped[int] = mapped_column(default=25, nullable=False)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -43,9 +54,13 @@ class StudyGroup(Base):
         CheckConstraint("capacity >= 2", name="ck_group_capacity_min"),
         CheckConstraint("length(name) >= 3", name="ck_group_name_length"),
     )
+    assignments: Mapped[List["Assignment"]] = relationship(
+        "Assignment",
+        back_populates="group",
+        cascade="all, delete-orphan"
+    )
 
 
-# member_count считается через subquery — не лишний запрос на каждый объект
 from db.models.membership import GroupMembership  # noqa: E402
 
 StudyGroup.member_count = column_property(

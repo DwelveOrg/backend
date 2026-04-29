@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 import os
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from datetime import datetime, timedelta, timezone
+
 
 # Секретный ключ — в продакшне брать из .env!
 SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")

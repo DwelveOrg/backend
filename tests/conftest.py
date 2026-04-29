@@ -1,6 +1,18 @@
+import os
+os.environ["TESTING"] = "true"
+
+from unittest.mock import patch, AsyncMock
+# Мокаем slowapi ДО импорта приложения
+import slowapi.extension
+original_check = slowapi.extension.Limiter._check_request_limit
+
+async def mock_check(*args, **kwargs):
+    pass
+
+slowapi.extension.Limiter._check_request_limit = mock_check
+
 import pytest
 import pytest_asyncio
-from unittest.mock import patch, AsyncMock
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
@@ -9,7 +21,6 @@ from db.db_ext import get_db
 from main import app
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
-
 engine = create_async_engine(TEST_DATABASE_URL)
 test_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -32,9 +43,8 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def mock_redis():
-    """Redis мок с памятью"""
+@pytest_asyncio.fixture
+async def redis_store():
     store = {}
 
     async def fake_setex(key, ttl, value):
@@ -50,11 +60,11 @@ async def mock_redis():
         mock.setex = fake_setex
         mock.get = fake_get
         mock.delete = fake_delete
-        yield mock
+        yield store
 
 
 @pytest_asyncio.fixture
-async def client():
+async def client(redis_store):
     app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(
         transport=ASGITransport(app=app),

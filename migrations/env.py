@@ -10,6 +10,12 @@ import db.models.user        # noqa
 import db.models.study_group # noqa
 import db.models.membership  # noqa
 import db.models.submission  # noqa
+import db.models.user        # noqa
+import db.models.study_group # noqa
+import db.models.membership  # noqa
+import db.models.submission  # noqa
+import db.models.assignment  # noqa
+import db.models.grade       # noqa
 
 config = context.config
 

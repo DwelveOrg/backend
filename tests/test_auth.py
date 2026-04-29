@@ -18,11 +18,35 @@ async def test_register_start(client):
 @pytest.mark.asyncio
 async def test_register_duplicate_email(client):
     with patch("app.routers.auth.send_verification_email"):
+        # Первый раз регистрируемся и завершаем
         await client.post("/api/auth/register/start", json={
             "full_name": "Test User",
             "email": "test@example.com",
             "role": "student"
         })
+
+        # Получаем код из Redis мока
+        from app.core.redis import redis_client
+        import json
+        raw = await redis_client.get("pending:test@example.com")
+        data = json.loads(raw)
+        code = data["code"]
+
+        # Верифицируем
+        await client.post("/api/auth/register/verify", json={
+            "email": "test@example.com",
+            "code": code
+        })
+
+        # Завершаем регистрацию
+        await client.post("/api/auth/register/complete", json={
+            "email": "test@example.com",
+            "password": "password123",
+            "confirm_password": "password123",
+            "accept_terms": True
+        })
+
+        # Теперь пробуем снова — должен быть 409
         response = await client.post("/api/auth/register/start", json={
             "full_name": "Test User",
             "email": "test@example.com",
@@ -44,7 +68,7 @@ async def test_login_wrong_password(client):
 async def test_register_verify_wrong_code(client):
     with patch("app.routers.auth.send_verification_email"):
         await client.post("/api/auth/register/start", json={
-            "full_name": "Test Urse",
+            "full_name": "Test User",
             "email": "test@example.com",
             "role": "student"
         })

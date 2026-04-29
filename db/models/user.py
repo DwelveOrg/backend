@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import List, TYPE_CHECKING
+from enum import Enum
 
 from sqlalchemy import String, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,6 +13,14 @@ if TYPE_CHECKING:
     from db.models.submission import TestSubmission
     from db.models.membership import GroupMembership
     from db.models.study_group import StudyGroup
+    from db.models.assignment import Assignment
+    from db.models.grade import Grade
+
+
+class UserRole(str, Enum):
+    student = "student"
+    teacher = "teacher"
+    school = "school"
 
 
 class User(Base):
@@ -28,7 +37,7 @@ class User(Base):
         server_default=func.now(),
         nullable=False
     )
-    role: Mapped[str] = mapped_column(String(20), default="student", nullable=False)
+    role: Mapped[str] = mapped_column(String(20), default=UserRole.student, nullable=False)
 
     test_submissions: Mapped[List["TestSubmission"]] = relationship(
         "TestSubmission",
@@ -45,14 +54,40 @@ class User(Base):
         back_populates="owner",
         cascade="all, delete-orphan",
     )
+    assignments_created: Mapped[List["Assignment"]] = relationship(
+        "Assignment",
+        back_populates="creator",
+        cascade="all, delete-orphan",
+    )
+    grades_received: Mapped[List["Grade"]] = relationship(
+        "Grade",
+        foreign_keys="Grade.student_id",
+        back_populates="student",
+        cascade="all, delete-orphan",
+    )
+    grades_given: Mapped[List["Grade"]] = relationship(
+        "Grade",
+        foreign_keys="Grade.grader_id",
+        back_populates="grader",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def is_teacher(self) -> bool:
-        return self.role == "teacher"
+        return self.role == UserRole.teacher
 
     @property
     def is_student(self) -> bool:
-        return self.role == "student"
+        return self.role == UserRole.student
+
+    @property
+    def is_school(self) -> bool:
+        return self.role == UserRole.school
+
+    @property
+    def can_create_groups(self) -> bool:
+        """Учителя и школы могут создавать группы"""
+        return self.role in (UserRole.teacher, UserRole.school)
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_context.hash(password)

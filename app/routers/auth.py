@@ -1,7 +1,9 @@
+import os
 import random
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,22 +22,25 @@ from app.core.redis import (
     delete_pending_registration,
     blacklist_token,
 )
-
 from app.dependencies.auth_deps import get_current_user
-
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Security
 from app.core.security import create_access_token
-
-security = HTTPBearer()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
-limiter = Limiter(key_func=get_remote_address)
+security = HTTPBearer()
+
+# Лимитер — отключаем в тестах
+if os.environ.get("TESTING"):
+    class _FakeLimiter:
+        def limit(self, *args, **kwargs):
+            return lambda f: f
+    limiter = _FakeLimiter()
+else:
+    limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/register/start", response_model=MsgResponse)
-@limiter.limit("5/minute")  # максимум 5 раз в минуту
+@limiter.limit("5/minute")
 async def register_start(request: Request, payload: RegisterStart, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none():
@@ -101,7 +106,7 @@ async def register_complete(request: Request, payload: RegisterComplete, db: Asy
 
 
 @router.post("/login")
-@limiter.limit("10/minute")  # защита от брутфорса
+@limiter.limit("10/minute")
 async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
@@ -114,6 +119,7 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
         "access_token": access_token,
         "token_type": "bearer"
     }
+
 
 @router.post("/logout", response_model=MsgResponse)
 @limiter.limit("10/minute")

@@ -39,6 +39,9 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(groups.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(assignments.router, prefix="/api")
+app.include_router(school.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 
 @app.get("/")
