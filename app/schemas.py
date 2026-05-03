@@ -143,3 +143,9 @@ class UserChangePassword(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=8)
     confirm_password: str
+
+class SubmitAssignment(BaseModel):
+    content: str = Field(..., min_length=1)
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

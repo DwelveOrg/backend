@@ -16,6 +16,7 @@ import db.models.membership  # noqa
 import db.models.submission  # noqa
 import db.models.assignment  # noqa
 import db.models.grade       # noqa
+import db.models.assignment  # noqa
 
 config = context.config
 

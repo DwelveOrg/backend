@@ -10,6 +10,9 @@ from db.models.membership import GroupMembership
 from db.models.grade import Grade
 from app.schemas import AssignmentCreate, AssignmentResponse, GradeCreate, GradeResponse
 from app.dependencies.auth_deps import get_current_user
+from db.models.assignment import AssignmentSubmission, AssignmentStatus
+from datetime import datetime, timezone
+from app.schemas import AssignmentCreate, AssignmentResponse, GradeCreate, GradeResponse, SubmitAssignment
 
 router = APIRouter(prefix="/assignments", tags=["assignments"])
 
@@ -133,3 +136,82 @@ async def list_grades(
         )
 
     return result.scalars().all()
+
+@router.post("/{assignment_id}/submit", status_code=status.HTTP_201_CREATED)
+async def submit_assignment(
+    assignment_id: int,
+    payload: SubmitAssignment,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ученик сдаёт задание"""
+    if current_user.role != UserRole.student:
+        raise HTTPException(status_code=403, detail="Only students can submit assignments.")
+
+    assignment = await db.get(Assignment, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found.")
+
+    # Проверяем что ученик состоит в группе
+    membership = await db.execute(
+        select(GroupMembership).where(
+            GroupMembership.user_id == current_user.id,
+            GroupMembership.group_id == assignment.group_id
+        )
+    )
+    if not membership.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="You are not a member of this group.")
+
+    # Проверяем что ещё не сдавал
+    existing = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id == assignment_id,
+            AssignmentSubmission.student_id == current_user.id
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="You already submitted this assignment.")
+
+    submission = AssignmentSubmission(
+        assignment_id=assignment_id,
+        student_id=current_user.id,
+        status=AssignmentStatus.submitted,
+        content=payload.content,
+        submitted_at=datetime.now(timezone.utc)
+    )
+    db.add(submission)
+    await db.commit()
+    await db.refresh(submission)
+    return {"message": "Assignment submitted successfully.", "id": submission.id}
+
+
+@router.get("/{assignment_id}/submissions")
+async def list_submissions(
+    assignment_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Учитель видит все сдачи задания"""
+    if not current_user.can_create_groups:
+        raise HTTPException(status_code=403, detail="Only teachers and schools can view submissions.")
+
+    assignment = await db.get(Assignment, assignment_id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found.")
+
+    result = await db.execute(
+        select(AssignmentSubmission).where(
+            AssignmentSubmission.assignment_id == assignment_id
+        )
+    )
+    submissions = result.scalars().all()
+    return [
+        {
+            "id": s.id,
+            "student_id": s.student_id,
+            "status": s.status,
+            "content": s.content,
+            "submitted_at": s.submitted_at,
+        }
+        for s in submissions
+    ]

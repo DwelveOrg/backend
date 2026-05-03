@@ -13,7 +13,7 @@ from db.db_ext import get_db
 from db.models.user import User
 from app.schemas import (
     RegisterStart, RegisterVerify, RegisterComplete,
-    LoginRequest, MsgResponse
+    LoginRequest, MsgResponse, RefreshTokenRequest
 )
 from app.core.email import send_verification_email
 from app.core.redis import (
@@ -21,15 +21,17 @@ from app.core.redis import (
     get_pending_registration,
     delete_pending_registration,
     blacklist_token,
+    store_refresh_token,
+    get_refresh_token,
+    delete_refresh_token,
 )
 from app.dependencies.auth_deps import get_current_user
-from app.core.security import create_access_token
+from app.core.security import create_access_token, create_refresh_token, decode_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
-# Лимитер — отключаем в тестах
 if os.environ.get("TESTING"):
     class _FakeLimiter:
         def limit(self, *args, **kwargs):
@@ -115,8 +117,34 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    await store_refresh_token(user.id, refresh_token)
+
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@router.post("/refresh")
+async def refresh(payload: RefreshTokenRequest):
+    token_data = decode_access_token(payload.refresh_token)
+    if not token_data or token_data.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+
+    user_id = token_data.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+
+    stored_token = await get_refresh_token(int(user_id))
+    if not stored_token or stored_token != payload.refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token expired or revoked.")
+
+    new_access_token = create_access_token(data={"sub": user_id})
+    return {
+        "access_token": new_access_token,
         "token_type": "bearer"
     }
 
@@ -130,4 +158,5 @@ async def logout(
 ):
     token = credentials.credentials
     await blacklist_token(token)
+    await delete_refresh_token(current_user.id)
     return {"message": "Successfully logged out."}

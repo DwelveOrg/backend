@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch
+import json
 
 
 @pytest.mark.asyncio
@@ -77,3 +78,40 @@ async def test_register_verify_wrong_code(client):
             "code": "000000"
         })
         assert response.status_code == 400
+
+@pytest.mark.asyncio
+async def test_refresh_token(client, redis_store):
+    with patch("app.routers.auth.send_verification_email"):
+        await client.post("/api/auth/register/start", json={
+            "full_name": "Test User",
+            "email": "test@example.com",
+            "role": "student"
+        })
+        raw = redis_store.get("pending:test@example.com")
+        data = json.loads(raw)
+        code = data["code"]
+
+        await client.post("/api/auth/register/verify", json={
+            "email": "test@example.com",
+            "code": code
+        })
+        await client.post("/api/auth/register/complete", json={
+            "email": "test@example.com",
+            "password": "password123",
+            "confirm_password": "password123",
+            "accept_terms": True
+        })
+
+    # Логинимся — получаем оба токена
+    login_response = await client.post("/api/auth/login", json={
+        "email": "test@example.com",
+        "password": "password123"
+    })
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Обновляем access токен
+    response = await client.post("/api/auth/refresh", json={
+        "refresh_token": refresh_token
+    })
+    assert response.status_code == 200
+    assert "access_token" in response.json()
