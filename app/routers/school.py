@@ -6,6 +6,7 @@ from db.db_ext import get_db
 from db.models.user import User, UserRole
 from db.models.study_group import StudyGroup
 from db.models.membership import GroupMembership
+from db.models.school import SchoolTeacher
 from app.schemas import UserBaseInfo
 from app.dependencies.auth_deps import get_current_user, role_required
 
@@ -99,3 +100,70 @@ async def school_stats(
         "total_students": len(students.scalars().all()),
         "total_groups": len(groups.scalars().all()),
     }
+
+@router.post("/teachers/{teacher_id}", status_code=status.HTTP_201_CREATED)
+async def add_teacher(
+    teacher_id: int,
+    current_user: User = Depends(role_required("school")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Школа добавляет учителя"""
+    teacher = await db.get(User, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if teacher.role != UserRole.teacher:
+        raise HTTPException(status_code=400, detail="User is not a teacher.")
+
+    existing = await db.execute(
+        select(SchoolTeacher).where(
+            SchoolTeacher.school_id == current_user.id,
+            SchoolTeacher.teacher_id == teacher_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Teacher already in school.")
+
+    school_teacher = SchoolTeacher(
+        school_id=current_user.id,
+        teacher_id=teacher_id
+    )
+    db.add(school_teacher)
+    await db.commit()
+    return {"message": "Teacher added successfully."}
+
+
+@router.delete("/teachers/{teacher_id}")
+async def remove_teacher(
+    teacher_id: int,
+    current_user: User = Depends(role_required("school")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Школа убирает учителя"""
+    relation = await db.execute(
+        select(SchoolTeacher).where(
+            SchoolTeacher.school_id == current_user.id,
+            SchoolTeacher.teacher_id == teacher_id
+        )
+    )
+    relation = relation.scalar_one_or_none()
+    if not relation:
+        raise HTTPException(status_code=404, detail="Teacher not found in school.")
+
+    await db.delete(relation)
+    await db.commit()
+    return {"message": "Teacher removed successfully."}
+
+
+@router.get("/my-teachers", response_model=list[UserBaseInfo])
+async def my_teachers(
+    current_user: User = Depends(role_required("school")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Мои учителя"""
+    result = await db.execute(
+        select(User)
+        .join(SchoolTeacher, SchoolTeacher.teacher_id == User.id)
+        .where(SchoolTeacher.school_id == current_user.id)
+    )
+    return result.scalars().all()
