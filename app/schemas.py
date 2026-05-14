@@ -5,6 +5,7 @@ from db.models.study_group import GroupType
 from datetime import datetime
 
 
+
 class MsgResponse(BaseModel):
     message: str
 
@@ -12,7 +13,7 @@ class MsgResponse(BaseModel):
 class RegisterStart(BaseModel):
     full_name: str = Field(..., min_length=5)
     email: EmailStr
-    role: UserRole  # ← теперь Enum вместо Literal
+    role: Literal["student", "teacher"]
 
 
 class RegisterVerify(BaseModel):
@@ -149,3 +150,9 @@ class SubmitAssignment(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+class SchoolRegister(BaseModel):
+    full_name: str = Field(..., min_length=5)
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    secret_key: str

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from db.models.assignment import Assignment
     from db.models.grade import Grade
     from db.models.assignment import AssignmentSubmission
+    from db.models.school import SchoolTeacher
 
 
 class UserRole(str, Enum):
@@ -75,6 +76,18 @@ class User(Base):
     assignment_submissions: Mapped[List["AssignmentSubmission"]] = relationship(
         "AssignmentSubmission",
         back_populates="student",
+        cascade="all, delete-orphan",
+    )
+    my_teachers: Mapped[List["SchoolTeacher"]] = relationship(
+        "SchoolTeacher",
+        foreign_keys="SchoolTeacher.school_id",
+        back_populates="school",
+        cascade="all, delete-orphan",
+    )
+    my_schools: Mapped[List["SchoolTeacher"]] = relationship(
+        "SchoolTeacher",
+        foreign_keys="SchoolTeacher.teacher_id",
+        back_populates="teacher",
         cascade="all, delete-orphan",
     )
 

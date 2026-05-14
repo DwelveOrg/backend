@@ -20,6 +20,7 @@ from db.base import Base
 from db.db_ext import get_db
 from main import app
 
+
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 engine = create_async_engine(TEST_DATABASE_URL)
 test_session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -36,12 +37,14 @@ async def setup_db():
     import db.models.study_group
     import db.models.membership
     import db.models.submission
+    import db.models.assignment
+    import db.models.grade
+    import db.models.school      # ← добавь!
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-
 
 @pytest_asyncio.fixture
 async def redis_store():

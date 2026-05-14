@@ -1,17 +1,42 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import os
+from app.core.security import pwd_context
 
 from db.db_ext import get_db
 from db.models.user import User, UserRole
 from db.models.study_group import StudyGroup
 from db.models.membership import GroupMembership
 from db.models.school import SchoolTeacher
-from app.schemas import UserBaseInfo
+from app.schemas import UserBaseInfo, RegisterStart, MsgResponse, SchoolRegister
 from app.dependencies.auth_deps import get_current_user, role_required
 
 router = APIRouter(prefix="/school", tags=["school"])
+SCHOOL_SECRET_KEY = os.getenv("SCHOOL_SECRET_KEY", "school-secret-change-in-production")
 
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+async def register_school(
+    payload: SchoolRegister,
+    db: AsyncSession = Depends(get_db)
+):
+    """Регистрация школы через секретный ключ"""
+    if payload.secret_key != SCHOOL_SECRET_KEY:
+        raise HTTPException(status_code=403, detail="Invalid secret key.")
+
+    existing = await db.execute(select(User).where(User.email == payload.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Email already exists.")
+
+    school = User(
+        full_name=payload.full_name,
+        email=payload.email,
+        role=UserRole.school
+    )
+    school.set_password(payload.password)
+    db.add(school)
+    await db.commit()
+    return {"message": "School registered successfully."}
 
 @router.get("/teachers", response_model=list[UserBaseInfo])
 async def list_teachers(
