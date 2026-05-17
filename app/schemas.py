@@ -3,6 +3,8 @@ from typing import List, Optional, Literal
 from db.models.user import UserRole
 from db.models.study_group import GroupType
 from datetime import datetime
+import re
+from pydantic import field_validator
 
 
 
@@ -26,6 +28,18 @@ class RegisterComplete(BaseModel):
     password: str = Field(..., min_length=8)
     confirm_password: str
     accept_terms: bool
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter.")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one digit.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character.")
+        return v
+
 
 
 class LoginRequest(BaseModel):
@@ -144,6 +158,17 @@ class UserChangePassword(BaseModel):
     old_password: str
     new_password: str = Field(..., min_length=8)
     confirm_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter.")
+        if not re.search(r"[0-9]", v):
+            raise ValueError("Password must contain at least one digit.")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("Password must contain at least one special character.")
+        return v
 
 class SubmitAssignment(BaseModel):
     content: str = Field(..., min_length=1)

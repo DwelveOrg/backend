@@ -12,15 +12,15 @@ from app.dependencies.auth_deps import get_current_user, role_required
 router = APIRouter(prefix="/groups", tags=["groups"])
 
 
-@router.post("/membership/upgrade", response_model=MsgResponse)
-async def upgrade_membership(
-        current_user: User = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
-):
-    current_user.paid_member = True
-    await db.commit()
-    await db.refresh(current_user)
-    return {"message": "Membership upgraded successfully."}
+# @router.post("/membership/upgrade", response_model=MsgResponse)
+# async def upgrade_membership(
+#         current_user: User = Depends(get_current_user),
+#         db: AsyncSession = Depends(get_db)
+# ):
+#     current_user.paid_member = True
+#     await db.commit()
+#     await db.refresh(current_user)
+#     return {"message": "Membership upgraded successfully."}
 
 
 # Публичный эндпоинт — авторизация не требуется
