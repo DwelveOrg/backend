@@ -21,14 +21,14 @@ async def register_and_login(client, email, role, store):
         })
         await client.post("/api/auth/register/complete", json={
             "email": email,
-            "password": "password123",
-            "confirm_password": "password123",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
             "accept_terms": True
         })
 
     response = await client.post("/api/auth/login", json={
         "email": email,
-        "password": "password123"
+        "password": "Password123!",
     })
     return response.json()["access_token"]
 

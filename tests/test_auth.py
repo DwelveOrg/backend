@@ -42,8 +42,8 @@ async def test_register_duplicate_email(client):
         # Завершаем регистрацию
         await client.post("/api/auth/register/complete", json={
             "email": "test@example.com",
-            "password": "password123",
-            "confirm_password": "password123",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
             "accept_terms": True
         })
 
@@ -97,15 +97,15 @@ async def test_refresh_token(client, redis_store):
         })
         await client.post("/api/auth/register/complete", json={
             "email": "test@example.com",
-            "password": "password123",
-            "confirm_password": "password123",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
             "accept_terms": True
         })
 
     # Логинимся — получаем оба токена
     login_response = await client.post("/api/auth/login", json={
         "email": "test@example.com",
-        "password": "password123"
+        "password": "Password123!",
     })
     refresh_token = login_response.json()["refresh_token"]
 
