@@ -1,6 +1,7 @@
 import os
 os.environ["TESTING"] = "true"
-
+os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
+os.environ["SCHOOL_SECRET_KEY"] = "test-school-secret-key"
 from unittest.mock import patch, AsyncMock
 # Мокаем slowapi ДО импорта приложения
 import slowapi.extension

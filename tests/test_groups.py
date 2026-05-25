@@ -21,14 +21,14 @@ async def register_and_login(client, email, role, store):
         })
         await client.post("/api/auth/register/complete", json={
             "email": email,
-            "password": "password123",
-            "confirm_password": "password123",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
             "accept_terms": True
         })
 
     response = await client.post("/api/auth/login", json={
         "email": email,
-        "password": "password123"
+        "password": "Password123!",
     })
     return response.json()["access_token"]
 
@@ -104,3 +104,71 @@ async def test_student_cannot_join_twice(client, redis_store):
         headers={"Authorization": f"Bearer {student_token}"}
     )
     assert response.status_code == 409
+
+@pytest.mark.asyncio
+async def test_student_can_leave_group(client, redis_store):
+    teacher_token = await register_and_login(client, "teacher@example.com", "teacher", redis_store)
+    student_token = await register_and_login(client, "student@example.com", "student", redis_store)
+
+    group_response = await client.post("/api/groups/", json={
+        "name": "Math Group",
+        "subject": "Math",
+        "tutor_name": "Mr. Smith",
+        "description": "Advanced math group",
+        "capacity": 10,
+        "is_private": False,
+        "group_type": "student"
+    }, headers={"Authorization": f"Bearer {teacher_token}"})
+    group_id = group_response.json()["id"]
+
+    await client.post(f"/api/groups/{group_id}/join",
+        headers={"Authorization": f"Bearer {student_token}"}
+    )
+
+    response = await client.delete(f"/api/groups/{group_id}/leave",
+        headers={"Authorization": f"Bearer {student_token}"}
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_teacher_can_delete_own_group(client, redis_store):
+    teacher_token = await register_and_login(client, "teacher@example.com", "teacher", redis_store)
+
+    group_response = await client.post("/api/groups/", json={
+        "name": "Math Group",
+        "subject": "Math",
+        "tutor_name": "Mr. Smith",
+        "description": "Advanced math group",
+        "capacity": 10,
+        "is_private": False,
+        "group_type": "student"
+    }, headers={"Authorization": f"Bearer {teacher_token}"})
+    group_id = group_response.json()["id"]
+
+    response = await client.delete(f"/api/groups/{group_id}",
+        headers={"Authorization": f"Bearer {teacher_token}"}
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_student_cannot_delete_group(client, redis_store):
+    teacher_token = await register_and_login(client, "teacher@example.com", "teacher", redis_store)
+    student_token = await register_and_login(client, "student@example.com", "student", redis_store)
+
+    group_response = await client.post("/api/groups/", json={
+        "name": "Math Group",
+        "subject": "Math",
+        "tutor_name": "Mr. Smith",
+        "description": "Advanced math group",
+        "capacity": 10,
+        "is_private": False,
+        "group_type": "student"
+    }, headers={"Authorization": f"Bearer {teacher_token}"})
+    group_id = group_response.json()["id"]
+
+    response = await client.delete(f"/api/groups/{group_id}",
+        headers={"Authorization": f"Bearer {student_token}"}
+    )
+    assert response.status_code == 403

@@ -2,6 +2,8 @@ import os
 import random
 import logging
 
+from app.core.logger import log_auth_event, log_security_event
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from slowapi import Limiter
@@ -46,10 +48,10 @@ else:
 async def register_start(request: Request, payload: RegisterStart, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     if result.scalar_one_or_none():
+        log_security_event("DUPLICATE_EMAIL", f"email={payload.email}", ip=request.client.host)
         raise HTTPException(status_code=409, detail="Email already exists.")
 
     code = str(random.randint(100000, 999999))
-
     await set_pending_registration(payload.email, {
         "full_name": payload.full_name,
         "role": payload.role,
@@ -58,6 +60,7 @@ async def register_start(request: Request, payload: RegisterStart, db: AsyncSess
     })
 
     await send_verification_email(payload.email, code)
+    log_auth_event("REGISTER_START", payload.email, ip=request.client.host)
     return {"message": "Verification code sent."}
 
 
@@ -114,13 +117,15 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
     user = result.scalar_one_or_none()
 
     if not user or not user.verify_password(payload.password):
+        log_auth_event("LOGIN", payload.email, ip=request.client.host, success=False)
+        log_security_event("FAILED_LOGIN", f"email={payload.email}", ip=request.client.host)
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
     await store_refresh_token(user.id, refresh_token)
 
+    log_auth_event("LOGIN", payload.email, ip=request.client.host, success=True)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -159,4 +164,5 @@ async def logout(
     token = credentials.credentials
     await blacklist_token(token)
     await delete_refresh_token(current_user.id)
+    log_auth_event("LOGOUT", current_user.email, ip=request.client.host)
     return {"message": "Successfully logged out."}
