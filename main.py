@@ -43,7 +43,6 @@ app.include_router(assignments.router, prefix="/api")
 app.include_router(school.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
-
 @app.get("/")
 async def root():
     return {"message": "Welcome to Exam Prep API", "docs": "/docs"}
