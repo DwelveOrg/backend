@@ -4,9 +4,7 @@ os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["SCHOOL_SECRET_KEY"] = "test-school-secret-key"
 
 from unittest.mock import patch, AsyncMock
-# Мокаем slowapi ДО импорта приложения
 import slowapi.extension
-original_check = slowapi.extension.Limiter._check_request_limit
 
 async def mock_check(*args, **kwargs):
     pass
@@ -17,11 +15,11 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import select
 
 from db.base import Base
 from db.db_ext import get_db
 from main import app
-
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 engine = create_async_engine(TEST_DATABASE_URL)
@@ -33,6 +31,17 @@ async def override_get_db():
         yield session
 
 
+async def set_user_role(email: str, role: str):
+    """Хелпер для тестов — напрямую меняет роль пользователя"""
+    from db.models.user import User
+    async with test_session_maker() as db:
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if user:
+            user.role = role
+            await db.commit()
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
     import db.models.user
@@ -41,12 +50,14 @@ async def setup_db():
     import db.models.submission
     import db.models.assignment
     import db.models.grade
-    import db.models.school      # ← добавь!
+    import db.models.school
+    import db.models.invite
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
 
 @pytest_asyncio.fixture
 async def redis_store():
