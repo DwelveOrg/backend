@@ -56,28 +56,22 @@ async def accept_teacher_invite(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Пользователь принимает инвайт и становится учителем"""
     invite = (await db.execute(
         select(TeacherInvite).where(TeacherInvite.token == token)
     )).scalar_one_or_none()
 
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found.")
-
     if invite.is_used:
         raise HTTPException(status_code=400, detail="Invite already used.")
-
     if invite.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invite expired.")
-
     if invite.email != current_user.email:
         raise HTTPException(status_code=403, detail="This invite is not for you.")
 
-    # Меняем роль на teacher
     current_user.role = UserRole.teacher
     invite.is_used = True
     await db.commit()
-
     return {"message": "You are now a teacher!"}
 
 
@@ -137,9 +131,13 @@ async def join_by_class_code(
     if existing:
         raise HTTPException(status_code=409, detail="You already joined this group.")
 
-    # Меняем роль на student если нет роли
-    if current_user.role not in (UserRole.student, UserRole.teacher):
+    # Меняем роль с pending на student
+    if current_user.role == UserRole.pending:
         current_user.role = UserRole.student
+    elif current_user.role == UserRole.teacher:
+        pass  # учитель может вступать в группы без смены роли
+    elif current_user.role not in (UserRole.student,):
+        raise HTTPException(status_code=403, detail="You cannot join a group with your current role.")
 
     membership = GroupMembership(
         user_id=current_user.id,

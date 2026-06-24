@@ -15,7 +15,6 @@ class MsgResponse(BaseModel):
 class RegisterStart(BaseModel):
     full_name: str = Field(..., min_length=5)
     email: EmailStr
-    role: Literal["student", "teacher"]
 
 
 class RegisterVerify(BaseModel):
