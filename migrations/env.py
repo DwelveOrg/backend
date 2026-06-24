@@ -18,6 +18,7 @@ import db.models.assignment  # noqa
 import db.models.grade       # noqa
 import db.models.assignment  # noqa
 import db.models.school      # noqa
+import db.models.invite      # noqa
 
 config = context.config
 

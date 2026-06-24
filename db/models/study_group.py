@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from db.models.user import User
     from db.models.membership import GroupMembership
     from db.models.assignment import Assignment
+    from db.models.invite import ClassCode
 
 
 class GroupType(str, Enum):
@@ -58,6 +59,11 @@ class StudyGroup(Base):
         "Assignment",
         back_populates="group",
         cascade="all, delete-orphan"
+    )
+    class_codes: Mapped[List["ClassCode"]] = relationship(
+        "ClassCode",
+        back_populates="group",
+        cascade="all, delete-orphan",
     )
 
 

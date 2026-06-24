@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.routers import auth, dashboard, groups, assignments, school, users
+from app.routers import auth, dashboard, groups, assignments, school, users, invites
 from db.db_ext import init_db
 
 limiter = Limiter(key_func=get_remote_address)
@@ -42,6 +42,7 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(assignments.router, prefix="/api")
 app.include_router(school.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
+app.include_router(invites.router, prefix="/api")
 
 
 @app.get("/")
