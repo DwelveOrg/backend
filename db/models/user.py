@@ -22,8 +22,10 @@ if TYPE_CHECKING:
 
 class UserRole(str, Enum):
     student = "student"
+    pending = "pending"
     teacher = "teacher"
     school = "school"
+    admin = "admin"
 
 
 class User(Base):

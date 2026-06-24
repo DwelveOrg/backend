@@ -52,9 +52,10 @@ async def register_start(request: Request, payload: RegisterStart, db: AsyncSess
         raise HTTPException(status_code=409, detail="Email already exists.")
 
     code = str(random.randint(100000, 999999))
+
     await set_pending_registration(payload.email, {
         "full_name": payload.full_name,
-        "role": payload.role,
+        "role": "pending",  # ← роль pending до принятия инвайта
         "verified": False,
         "code": code,
     })
