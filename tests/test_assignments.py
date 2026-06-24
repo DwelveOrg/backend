@@ -3,12 +3,13 @@ import json
 from unittest.mock import patch
 
 
+from tests.conftest import set_user_role
+
 async def register_and_login(client, email, role, store):
     with patch("app.routers.auth.send_verification_email"):
         await client.post("/api/auth/register/start", json={
             "full_name": "Test User",
             "email": email,
-            "role": role
         })
         raw = store.get(f"pending:{email}")
         data = json.loads(raw)
@@ -25,9 +26,12 @@ async def register_and_login(client, email, role, store):
             "accept_terms": True
         })
 
+    # Устанавливаем роль напрямую в БД
+    await set_user_role(email, role)
+
     response = await client.post("/api/auth/login", json={
         "email": email,
-        "password": "Password123!",
+        "password": "Password123!"
     })
     return response.json()["access_token"]
 
