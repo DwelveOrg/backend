@@ -1,8 +1,8 @@
-"""add user roles enum
+"""add teacher invites and class codes
 
-Revision ID: 3df075258449
-Revises: b3ff5bf3c720
-Create Date: 2026-04-29 23:23:49.360714
+Revision ID: b5828b983e41
+Revises: 8be0aa3ab57d
+Create Date: 2026-06-24 15:41:52.385418
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3df075258449'
-down_revision: Union[str, Sequence[str], None] = 'b3ff5bf3c720'
+revision: str = 'b5828b983e41'
+down_revision: Union[str, Sequence[str], None] = '8be0aa3ab57d'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

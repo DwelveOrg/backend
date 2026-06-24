@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from db.models.grade import Grade
     from db.models.assignment import AssignmentSubmission
     from db.models.school import SchoolTeacher
+    from db.models.invite import TeacherInvite, ClassCode
 
 
 class UserRole(str, Enum):
@@ -88,6 +89,16 @@ class User(Base):
         "SchoolTeacher",
         foreign_keys="SchoolTeacher.teacher_id",
         back_populates="teacher",
+        cascade="all, delete-orphan",
+    )
+    invites_created: Mapped[List["TeacherInvite"]] = relationship(
+        "TeacherInvite",
+        back_populates="created_by",
+        cascade="all, delete-orphan",
+    )
+    class_codes_created: Mapped[List["ClassCode"]] = relationship(
+        "ClassCode",
+        back_populates="created_by",
         cascade="all, delete-orphan",
     )
 
