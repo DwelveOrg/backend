@@ -29,6 +29,7 @@ async def register_and_login(client, email, role, store):
     # Устанавливаем роль напрямую в БД
     await set_user_role(email, role)
 
+    # Логинимся ПОСЛЕ смены роли — токен будет с правильной ролью
     response = await client.post("/api/auth/login", json={
         "email": email,
         "password": "Password123!"

@@ -10,6 +10,7 @@ from db.models.user import User, UserRole
 from db.models.invite import TeacherInvite, ClassCode
 from db.models.study_group import StudyGroup
 from db.models.membership import GroupMembership
+from db.models.school import SchoolTeacher
 from app.schemas import MsgResponse
 from app.dependencies.auth_deps import get_current_user
 from app.core.email import send_verification_email
@@ -147,3 +148,47 @@ async def join_by_class_code(
     await db.commit()
 
     return {"message": "Successfully joined the group via class code."}
+
+@router.post("/teacher/accept", response_model=MsgResponse)
+async def accept_teacher_invite(
+    token: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Пользователь принимает инвайт и становится учителем данной школы"""
+    invite = (await db.execute(
+        select(TeacherInvite).where(TeacherInvite.token == token)
+    )).scalar_one_or_none()
+
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    if invite.is_used:
+        raise HTTPException(status_code=400, detail="Invite already used.")
+    if invite.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Invite expired.")
+    if invite.email != current_user.email:
+        raise HTTPException(status_code=403, detail="This invite is not for you.")
+
+    # Меняем роль на teacher (если ещё не teacher/school)
+    if current_user.role == UserRole.pending:
+        current_user.role = UserRole.teacher
+
+    # Создаём связь школа-учитель (если ещё нет)
+    existing_link = (await db.execute(
+        select(SchoolTeacher).where(
+            SchoolTeacher.school_id == invite.created_by_id,
+            SchoolTeacher.teacher_id == current_user.id
+        )
+    )).scalar_one_or_none()
+
+    if not existing_link:
+        link = SchoolTeacher(
+            school_id=invite.created_by_id,
+            teacher_id=current_user.id
+        )
+        db.add(link)
+
+    invite.is_used = True
+    await db.commit()
+
+    return {"message": "You are now a teacher at this school!"}

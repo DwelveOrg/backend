@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 import json
-
+from tests.conftest import set_user_role
 
 @pytest.mark.asyncio
 async def test_register_start(client):
@@ -115,3 +115,34 @@ async def test_refresh_token(client, redis_store):
     })
     assert response.status_code == 200
     assert "access_token" in response.json()
+
+async def register_and_login(client, email, role, store):
+    with patch("app.routers.auth.send_verification_email"):
+        await client.post("/api/auth/register/start", json={
+            "full_name": "Test User",
+            "email": email,
+        })
+        raw = store.get(f"pending:{email}")
+        data = json.loads(raw)
+        code = data["code"]
+
+        await client.post("/api/auth/register/verify", json={
+            "email": email,
+            "code": code
+        })
+        await client.post("/api/auth/register/complete", json={
+            "email": email,
+            "password": "Password123!",
+            "confirm_password": "Password123!",
+            "accept_terms": True
+        })
+
+    # Устанавливаем роль напрямую в БД
+    await set_user_role(email, role)
+
+    # Логинимся ПОСЛЕ смены роли
+    response = await client.post("/api/auth/login", json={
+        "email": email,
+        "password": "Password123!"
+    })
+    return response.json()["access_token"]
