@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy import or_
+from fastapi import Query
+from sqlalchemy import select
 
 from db.db_ext import get_db
 from db.models.user import User
@@ -62,3 +65,29 @@ async def change_password(
     current_user.set_password(payload.new_password)
     await db.commit()
     return {"message": "Password changed successfully."}
+
+@router.get("/search")
+async def search_users(
+    query: str = Query(..., min_length=2),
+    role: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Поиск пользователей по имени или email"""
+    stmt = select(User).where(
+        or_(
+            User.full_name.ilike(f"%{query}%"),
+            User.email.ilike(f"%{query}%")
+        )
+    )
+    if role:
+        stmt = stmt.where(User.role == role)
+
+    stmt = stmt.limit(20)
+    result = await db.execute(stmt)
+    users = result.scalars().all()
+
+    return [
+        {"id": u.id, "full_name": u.full_name, "role": u.role}
+        for u in users
+    ]
